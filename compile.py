@@ -48,7 +48,7 @@ def sort_file(file_path, match_header_name):
   remove_file(temp_file_path)
 
 def results_file_headers(fieldnames):
-  return fieldnames + [header + '(Secondary)' for header in fieldnames] #duplicate headers for matches
+  return fieldnames + [header + ' (Secondary)' for header in fieldnames]
 
 def create_results_file():
   with open(primary_file_path(), 'r') as primary_file:
@@ -80,26 +80,33 @@ def create_compiled_secondaries_file():
   for secondary_file_path in secondary_file_paths():
     populate_compiled_secondaries_file(secondary_file_path)
 
+def convert_to_string(row):
+  data = (str(value.replace(',', ';')) for value in row.values())
+  return ",".join(data)
+
+def combine_results_and_secondaries_rows(results_row, secondaries_row):
+  for secondaries_header in secondaries_row.keys():
+    results_row[secondaries_header + ' (Secondary)'] = secondaries_row[secondaries_header]
+  return results_row
+
 def add_secondaries_data_to_results(secondaries_row, match_header_name):
   with fileinput.input(results_file_path(), inplace=True, mode='r') as results_csv_file:
     results_data = csv.DictReader(results_csv_file)
-    match_already_found = False
+    searching_for_match = True
     print(",".join(results_data.fieldnames))
     for results_row in results_data:
-      if match_already_found or results_row['ID(Secondary)'] != '':
-        data = ",".join(str(i.replace(',', ';')) for i in results_row.values())
-        print(data)
-      elif results_row[match_header_name] == secondaries_row[match_header_name]:
-        match_already_found = True
-        for secondaries_header in secondaries_row.keys():
-          results_row[secondaries_header + '(Secondary)'] = secondaries_row[secondaries_header]
-        data = ",".join(str(i.replace(',', ';')) for i in results_row.values())
-        print(data)
+      if results_row[match_header_name] == secondaries_row[match_header_name]:
+        searching_for_match = False
+        results_row = combine_results_and_secondaries_rows(results_row, secondaries_row)
+      elif searching_for_match and results_row['ID (Secondary)'] == '':
+        continue
+      converted_row = convert_to_string(results_row)
+      print(converted_row)
 
 def add_compiled_secondaries_to_results(match_header_name):
   with open(compiled_secondaries_file_path()) as compiled_secondaries_file:
     secondaries_data = csv.DictReader(compiled_secondaries_file)
-    next(secondaries_data) # skip headers for iteration
+    next(secondaries_data) # skip headers
     for secondaries_row in secondaries_data:
       add_secondaries_data_to_results(secondaries_row, match_header_name)
 
@@ -108,9 +115,10 @@ def remove_unmatched_primary_rows():
     results_data = csv.DictReader(results_csv_file)
     print(",".join(results_data.fieldnames))
     for results_row in results_data:
-      if results_row['ID(Secondary)'] != '':
-        data = ",".join(str(i.replace(',', ';')) for i in results_row.values())
-        print(data)
+      if results_row['ID (Secondary)'] == '':
+        continue
+      converted_row = convert_to_string(results_row)
+      print(converted_row)
 
 # settings
 match_header_name = 'ID'
@@ -128,3 +136,10 @@ add_compiled_secondaries_to_results(match_header_name)
 remove_unmatched_primary_rows()
 # cleanup
 remove_file(compiled_secondaries_file_path())
+
+# setup instructions
+# 
+# place compile script in folder (name does not matter)
+# place folder named 'primary' at same level as compile script
+# place folder named 'secondaries' at same level as compile script
+# update 'match_header_name' to name of column to match on
