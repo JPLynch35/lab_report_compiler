@@ -38,7 +38,7 @@ def sort_file(file_path, match_header_name):
   temp_file_path = file_path + '.bak'
   with open(file_path, 'r') as file:
     data = csv.DictReader(file)
-    sorted_data = sorted(data, key=lambda row: row[match_header_name])
+    sorted_data = sorted(data, key=lambda row: row[match_header_name], reverse=True)
     headers = data.fieldnames
     with open(temp_file_path, 'w') as temp_sorted_file:
       data = csv.DictWriter(temp_sorted_file, fieldnames=headers)
@@ -92,14 +92,10 @@ def combine_results_and_secondaries_rows(results_row, secondaries_row):
 def add_secondaries_data_to_results(secondaries_row, match_header_name):
   with fileinput.input(results_file_path(), inplace=True, mode='r') as results_csv_file:
     results_data = csv.DictReader(results_csv_file)
-    searching_for_match = True
     print(",".join(results_data.fieldnames))
     for results_row in results_data:
       if results_row[match_header_name] == secondaries_row[match_header_name]:
-        searching_for_match = False
         results_row = combine_results_and_secondaries_rows(results_row, secondaries_row)
-      elif searching_for_match and results_row['ID (Secondary)'] == '':
-        continue
       converted_row = convert_to_string(results_row)
       print(converted_row)
 
@@ -109,16 +105,6 @@ def add_compiled_secondaries_to_results(match_header_name):
     next(secondaries_data) # skip headers
     for secondaries_row in secondaries_data:
       add_secondaries_data_to_results(secondaries_row, match_header_name)
-
-def remove_unmatched_primary_rows():
-  with fileinput.input(results_file_path(), inplace=True, mode='r') as results_csv_file:
-    results_data = csv.DictReader(results_csv_file)
-    print(",".join(results_data.fieldnames))
-    for results_row in results_data:
-      if results_row['ID (Secondary)'] == '':
-        continue
-      converted_row = convert_to_string(results_row)
-      print(converted_row)
 
 # settings
 match_header_name = 'ID'
@@ -133,7 +119,7 @@ create_compiled_secondaries_file()
 sort_file(compiled_secondaries_file_path(), match_header_name)
 # results compiling
 add_compiled_secondaries_to_results(match_header_name)
-remove_unmatched_primary_rows()
+sort_file(results_file_path(), match_header_name + ' (Secondary)')
 # cleanup
 remove_file(compiled_secondaries_file_path())
 
