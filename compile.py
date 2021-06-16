@@ -47,21 +47,6 @@ def sort_file(file_path, match_header_name):
   copy_file(temp_file_path, file_path)
   remove_file(temp_file_path)
 
-def sort_file_by_two_columns(file_path, match_header_name):
-  temp_file_path = file_path + '.bak'
-  with open(file_path, 'r') as file:
-    data_reader = csv.DictReader(file)
-    presorted_data = sorted(data_reader, key=lambda row: row[match_header_name])
-    match_secondary_header_name = match_header_name + ' (Secondary)'
-    sorted_data = sorted(presorted_data, key=lambda row: row[match_secondary_header_name], reverse=True)
-    headers = data_reader.fieldnames
-    with open(temp_file_path, 'w') as temp_sorted_file:
-      data_writer = csv.DictWriter(temp_sorted_file, fieldnames=headers)
-      data_writer.writeheader()
-      data_writer.writerows(sorted_data)
-  copy_file(temp_file_path, file_path)
-  remove_file(temp_file_path)
-
 def results_file_headers(fieldnames):
   return fieldnames + [header + ' (Secondary)' for header in fieldnames]
 
@@ -105,7 +90,11 @@ def primary_file_empty_rows():
     headers = primary_reader.fieldnames
   return ['-,' for header in headers]
 
-def convert_to_unmatched_string(headers, secondaries_row):
+def convert_unmatched_to_dictionary(secondaries_row):
+  with open(results_file_path(), 'r') as results_file:
+    data_reader = csv.reader(results_file)
+    for headers in data_reader:
+        break
   combined_row = dict((column,'-') for column in headers)
   for secondaries_header in secondaries_row.keys():
     combined_row[secondaries_header + ' (Secondary)'] = secondaries_row[secondaries_header]
@@ -116,7 +105,7 @@ def combine_results_and_secondaries_rows(results_row, secondaries_row):
     results_row[secondaries_header + ' (Secondary)'] = secondaries_row[secondaries_header]
   return results_row
 
-def add_secondaries_data_to_results(secondaries_row, match_header_name):
+def match_secondaries_to_results(secondaries_row, match_header_name):
   with fileinput.input(results_file_path(), inplace=True, mode='r') as results_file:
     data_reader = csv.DictReader(results_file)
     print(",".join(data_reader.fieldnames))
@@ -129,23 +118,23 @@ def add_secondaries_data_to_results(secondaries_row, match_header_name):
       print(converted_row)
     return match_found
 
-def add_secondaries_data_to_results_as_unmatched(secondaries_row):
-  with open(results_file_path(), 'r') as results_file:
-    data_reader = csv.reader(results_file)
-    for headers in data_reader:
-        break
-  converted_row = convert_to_unmatched_string(headers, secondaries_row)
-  with open(results_file_path(), 'a', newline='') as results_file:
-    data_writer = csv.DictWriter(results_file, fieldnames=headers)
-    data_writer.writerow(converted_row)
-
-def add_compiled_secondaries_to_results(match_header_name):
+def add_compiled_secondaries_to_results(unmatched_secondaries_rows, match_header_name):
   with open(compiled_secondaries_file_path()) as compiled_secondaries_file:
     secondaries_data = csv.DictReader(compiled_secondaries_file)
     next(secondaries_data) # skip headers
     for secondaries_row in secondaries_data:
-      if not add_secondaries_data_to_results(secondaries_row, match_header_name):
-        add_secondaries_data_to_results_as_unmatched(secondaries_row)
+      if not match_secondaries_to_results(secondaries_row, match_header_name):
+        unmatched_secondaries_rows.append(convert_unmatched_to_dictionary(secondaries_row))
+
+def add_unmatched_secondaries_rows(unmatched_secondaries_rows):
+  with open(results_file_path(), 'r') as results_file:
+    data_reader = csv.reader(results_file)
+    for headers in data_reader:
+        break
+  with open(results_file_path(), 'a', newline='') as results_file:
+    data_writer = csv.DictWriter(results_file, fieldnames=headers)
+    for unmatched_secondaries_row in unmatched_secondaries_rows:
+      data_writer.writerow(unmatched_secondaries_row)
 
 # settings
 match_header_name = 'ID'
@@ -159,8 +148,10 @@ create_empty_secondaries_file()
 create_compiled_secondaries_file()
 sort_file(compiled_secondaries_file_path(), match_header_name)
 # results compiling
-add_compiled_secondaries_to_results(match_header_name)
-sort_file_by_two_columns(results_file_path(), match_header_name)
+unmatched_secondaries_rows = []
+add_compiled_secondaries_to_results(unmatched_secondaries_rows, match_header_name)
+sort_file(results_file_path(), match_header_name + ' (Secondary)')
+add_unmatched_secondaries_rows(unmatched_secondaries_rows)
 # cleanup
 remove_file(compiled_secondaries_file_path())
 
