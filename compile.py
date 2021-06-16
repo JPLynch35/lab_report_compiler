@@ -40,7 +40,7 @@ def sort_file(file_path, match_header_name):
     data_reader = csv.DictReader(file)
     sorted_data = sorted(data_reader, key=lambda row: row[match_header_name], reverse=True)
     headers = data_reader.fieldnames
-    with open(temp_file_path, 'w') as temp_sorted_file:
+    with open(temp_file_path, 'w', newline='') as temp_sorted_file:
       data_writer = csv.DictWriter(temp_sorted_file, fieldnames=headers)
       data_writer.writeheader()
       data_writer.writerows(sorted_data)
@@ -54,7 +54,7 @@ def create_results_file():
   with open(primary_file_path(), 'r') as primary_file:
     data_reader = csv.DictReader(primary_file)
     headers = results_file_headers(data_reader.fieldnames)
-    with open(results_file_path(), 'w') as results_file:
+    with open(results_file_path(), 'w', newline='') as results_file:
       data_writer = csv.DictWriter(results_file, fieldnames=headers)
       data_writer.writeheader()
       data_writer.writerows(data_reader)
@@ -64,7 +64,7 @@ def create_empty_secondaries_file():
   with open(sample_secondary_file_path, 'r') as sample_secondary_file:
     data_reader = csv.DictReader(sample_secondary_file)
     headers = data_reader.fieldnames
-    with open(compiled_secondaries_file_path(), 'w') as compiled_secondaries_file:
+    with open(compiled_secondaries_file_path(), 'w', newline='') as compiled_secondaries_file:
       data_writer = csv.DictWriter(compiled_secondaries_file, fieldnames=headers)
       data_writer.writeheader()
 
@@ -72,7 +72,7 @@ def populate_compiled_secondaries_file(secondary_file_path):
   with open(secondary_file_path, 'r') as secondary_file:
     data_reader = csv.DictReader(secondary_file)
     headers = data_reader.fieldnames
-    with open(compiled_secondaries_file_path(), 'a') as compiled_secondaries_file:
+    with open(compiled_secondaries_file_path(), 'a', newline='') as compiled_secondaries_file:
       data_writer = csv.DictWriter(compiled_secondaries_file, fieldnames=headers)
       data_writer.writerows(data_reader)
 
@@ -108,14 +108,14 @@ def combine_results_and_secondaries_rows(results_row, secondaries_row):
 def match_secondaries_to_results(secondaries_row, match_header_name):
   with fileinput.input(results_file_path(), inplace=True, mode='r') as results_file:
     data_reader = csv.DictReader(results_file)
-    print(",".join(data_reader.fieldnames))
+    print(",".join(data_reader.fieldnames).rstrip())
     match_found = False
     for results_row in data_reader:
       if results_row[match_header_name] == secondaries_row[match_header_name]:
         match_found = True
         results_row = combine_results_and_secondaries_rows(results_row, secondaries_row)
       converted_row = convert_to_string(results_row)
-      print(converted_row)
+      print(converted_row.rstrip())
     return match_found
 
 def add_compiled_secondaries_to_results(unmatched_secondaries_rows, match_header_name):
